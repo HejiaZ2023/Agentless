@@ -7,7 +7,7 @@ import re
 from collections import Counter
 from threading import Lock
 
-from datasets import load_dataset
+from agentless.util.load_dataset_filter import load_dataset
 from tqdm import tqdm
 
 from agentless.util.api_requests import num_tokens_from_messages
@@ -494,7 +494,7 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="gpt-4o-2024-05-13",
+        default="claude-3-5-sonnet-20241022",
         choices=[
             "gpt-4o-2024-05-13",
             "deepseek-coder",
@@ -505,7 +505,7 @@ def main():
     parser.add_argument(
         "--backend",
         type=str,
-        default="openai",
+        default="anthropic",
         choices=["openai", "deepseek", "anthropic"],
     )
     parser.add_argument("--output_folder", type=str, required=True)

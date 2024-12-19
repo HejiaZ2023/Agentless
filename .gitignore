@@ -178,6 +178,7 @@ get_repo_structure/test_repo/
 results/
 logs/
 dev/
+playground/
 
 # data files
 *.jsonl
