@@ -3,7 +3,7 @@ import json
 import os
 
 import jsonlines
-from datasets import load_dataset
+from agentless.util.load_dataset_filter import load_dataset
 from swebench.harness.constants import (
     FAIL_TO_PASS,
     KEY_INSTANCE_ID,

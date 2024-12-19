@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 
-from datasets import load_dataset
+from agentless.util.load_dataset_filter import load_dataset
 
 from agentless.test.run_tests import run_reproduction_tests, txt_file_contains_string
 from agentless.util.utils import load_jsonl

@@ -148,7 +148,7 @@ def request_anthropic_engine(
                 config["messages"][0]["content"][0]["cache_control"] = {
                     "type": "ephemeral"
                 }
-                ret = client.beta.prompt_caching.messages.create(**config)
+                ret = client.messages.create(**config)
             else:
                 ret = client.messages.create(**config)
         except Exception as e:

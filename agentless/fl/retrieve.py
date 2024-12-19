@@ -4,7 +4,7 @@ import json
 import os
 from threading import Lock
 
-from datasets import load_dataset
+from agentless.util.load_dataset_filter import load_dataset
 from tqdm import tqdm
 
 from agentless.fl.Index import EmbeddingIndex
