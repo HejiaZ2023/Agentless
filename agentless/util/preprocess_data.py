@@ -265,6 +265,12 @@ def transfer_arb_locs_to_locs(
                         line_loc.append(
                             (global_vars[v]["start_line"], global_vars[v]["end_line"])
                         )
+            elif loc.startswith("line_range: "):
+                loc = loc[len("line_range: ") :].strip().split('-')
+                try:
+                    line_loc.append((int(loc[0].strip()), int(loc[1].strip())))
+                except:
+                    continue
             else:
                 if loc.strip():
                     unrecognized_locs.append(loc)

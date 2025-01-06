@@ -40,6 +40,16 @@ Using the 4 sets of edit locations from before, we now perform repair.
 
 Run the following command to generate the patches:
 
+> [!TIP]
+> Make sure you have
+> ```shell
+> export PYTHONPATH=$PYTHONPATH:$(pwd)
+> ```
+> set up correctly, or an error may occur like:
+> ```shell
+> ModuleNotFoundError: No module named 'agentless'
+> ```
+
 ```shell
 python agentless/repair/repair.py --loc_file results/swe-bench-lite/edit_location_individual/loc_orcar_outputs.jsonl \
                                   --output_folder results/swe-bench-lite/repair_sample_orcar \
@@ -50,7 +60,7 @@ python agentless/repair/repair.py --loc_file results/swe-bench-lite/edit_locatio
                                   --cot \
                                   --str_replace_format \
                                   --gen_and_process \
-                                  --num_threads 2 
+                                  --num_threads 2
 ```
 
 This commands generate 40 samples (1 greedy and 39 via temperature sampling) as defined `--max_samples 40`. The `--context_window` indicates the amount of code lines before and after each localized edit location we provide to the model for repair. The patches are saved in `results/swe-bench-lite/repair_sample_orcar/output.jsonl`, which contains the raw output of each sample as well as any trajectory information (e.g., number of tokens). The complete logs are also saved in `results/swe-bench-lite/repair_sample_orcar/repair_logs/` 
