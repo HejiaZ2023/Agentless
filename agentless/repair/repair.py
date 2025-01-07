@@ -5,10 +5,10 @@ import os
 from difflib import unified_diff
 from threading import Lock
 
-from agentless.util.load_dataset_filter import load_dataset
 from tqdm import tqdm
 
 from agentless.util.api_requests import num_tokens_from_messages
+from agentless.util.load_dataset_filter import load_dataset
 from agentless.util.model import make_model
 from agentless.util.postprocess_data import (
     check_code_differ_by_just_empty_lines,
@@ -27,7 +27,7 @@ from agentless.util.preprocess_data import (
     line_wrap_content,
     transfer_arb_locs_to_locs,
 )
-from agentless.util.utils import cleanup_logger, load_jsonl, setup_logger, load_json
+from agentless.util.utils import cleanup_logger, load_json, load_jsonl, setup_logger
 
 repair_relevant_file_instruction = """
 Below are some code segments, each from a relevant file. One or more of these files may contain bugs.
@@ -151,23 +151,24 @@ We are currently solving the following issue within our repository. Here is the 
 Please first localize the bug based on the issue statement, and then generate editing commands to fix the issue.
 """
 
-dep_prompt_global = '''
+dep_prompt_global = """
 
-To help you better understand the contexts of the code segments, we provide a set of dependencies of the code segments. 
-The dependencies reflect how the functions/classes in the code segments are referenced in the codebase. 
+To help you better understand the contexts of the code segments, we provide a set of dependencies of the code segments.
+The dependencies reflect how the functions/classes in the code segments are referenced in the codebase.
 
 --- BEGIN DEPENDEICIES ---
 {dependencies}
 --- END DEPENDEICIES ---
-'''
+"""
 
 dep_prompt_single = """
 location: {fname} lines {start_line} - {end_line}
 name: {name}
-contents: 
+contents:
 {contents}
 
 """
+
 
 def _post_process_multifile_repair(
     raw_output: str,
@@ -290,6 +291,42 @@ def construct_topn_file_context(
     return topn_content, file_loc_intervals
 
 
+def gen_dep_prompt(loc, args, logger, structure, files) -> str:
+    dep_prompt_list = []
+    for name, v in loc["dep_locs"].items():
+        logger.info(f"Handling dependency: {name}, {v}")
+        fname = list(v.keys())[0]
+        file_contents = dict()
+        for file_content in files:
+            if file_content[0] == fname:
+                content = "\n".join(file_content[1])
+                file_contents[fname] = content
+                break
+        content, file_loc_intervals = construct_topn_file_context(
+            v,
+            [fname],
+            file_contents,
+            structure,
+            context_window=0,
+            loc_interval=args.loc_interval,
+            fine_grain_loc_only=args.fine_grain_loc_only,
+            add_space=args.add_space,
+            no_line_number=args.diff_format or args.str_replace_format,
+            sticky_scroll=args.sticky_scroll,
+        )
+
+        logger.info(file_loc_intervals)
+        cur_dep_prompt = dep_prompt_single.format(
+            fname=fname,
+            start_line=file_loc_intervals[fname][0][0],
+            end_line=file_loc_intervals[fname][0][1],
+            name=name,
+            contents=content,
+        )
+        dep_prompt_list.append(cur_dep_prompt)
+    return dep_prompt_global.format(dependencies="\n".join(dep_prompt_list))
+
+
 def process_loc(loc, args, swe_bench_data, prev_o, write_lock=None):
     instance_id = loc["instance_id"]
 
@@ -402,42 +439,10 @@ def process_loc(loc, args, swe_bench_data, prev_o, write_lock=None):
         if write_lock is not None:
             write_lock.release()
         return
-    
+
     dep_prompt = ""
-    if 'dep_locs' in loc and len(loc['dep_locs']) > 0:
-        dep_prompt_list = []
-        for name, v in loc['dep_locs'].items():
-            logger.info(f"Handling dependency: {name}, {v}")
-            fname = list(v.keys())[0]
-            file_contents = dict()
-            for file_content in files:
-                if file_content[0] == fname:
-                    content = "\n".join(file_content[1])
-                    file_contents[fname] = content
-                    break
-            content, file_loc_intervals = construct_topn_file_context(
-                v,
-                [fname],
-                file_contents,
-                structure,
-                context_window=0,
-                loc_interval=args.loc_interval,
-                fine_grain_loc_only=args.fine_grain_loc_only,
-                add_space=args.add_space,
-                no_line_number=args.diff_format or args.str_replace_format,
-                sticky_scroll=args.sticky_scroll,
-            )
-            
-            logger.info(file_loc_intervals)
-            cur_dep_prompt = dep_prompt_single.format(
-                fname=fname,
-                start_line=file_loc_intervals[fname][0][0],
-                end_line=file_loc_intervals[fname][0][1],
-                name=name,
-                contents=content,
-            )
-            dep_prompt_list.append(cur_dep_prompt)
-        dep_prompt = dep_prompt_global.format(dependencies="\n".join(dep_prompt_list))
+    if "dep_locs" in loc and len(loc["dep_locs"]) > 0:
+        dep_prompt = gen_dep_prompt(loc, args, logger, structure, files)
 
     prompt_template = (
         repair_prompt_combine_topn_cot_str_replace
