@@ -3,7 +3,7 @@ import concurrent.futures
 import json
 import os
 from difflib import unified_diff
-from threading import Lock
+from multiprocessing import Manager
 
 from tqdm import tqdm
 
@@ -611,22 +611,23 @@ def repair(args):
         for loc in tqdm(locs, total=len(locs), colour="MAGENTA"):
             process_loc(loc, args, swe_bench_data, prev_o)
     else:
-        write_lock = Lock()
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=args.num_threads
-        ) as executor:
-            futures = {
-                executor.submit(
-                    process_loc, loc, args, swe_bench_data, prev_o, write_lock
-                ): loc
-                for loc in locs
-            }
-            for future in tqdm(
-                concurrent.futures.as_completed(futures),
-                total=len(locs),
-                colour="MAGENTA",
-            ):
-                future.result()
+        with Manager() as manager:
+            write_lock = manager.Lock()
+            with concurrent.futures.ProcessPoolExecutor(
+                max_workers=args.num_threads
+            ) as executor:
+                futures = {
+                    executor.submit(
+                        process_loc, loc, args, swe_bench_data, prev_o, write_lock
+                    ): loc
+                    for loc in locs
+                }
+                for future in tqdm(
+                    concurrent.futures.as_completed(futures),
+                    total=len(locs),
+                    colour="MAGENTA",
+                ):
+                    future.result()
 
 
 def post_process_raw_output(
